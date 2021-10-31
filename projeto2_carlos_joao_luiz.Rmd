@@ -1,0 +1,278 @@
+---
+title: "Indicadores Socioeconômicos do Nordeste Brasileiro"
+author: "Carlos Neto, João Falcão, Luiz Fernando"
+date: "29/03/2020"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+setwd("C:/Users/luizf/Desktop/projeto")
+library(foreign)
+library(data.table)
+library(dplyr)
+library(sf)
+library(ggplot2)
+library(brazilmaps)
+library(knitr)
+library(kableExtra)
+pnad <- read.dta("C:/Users/luizf/Desktop/projeto/pnad.dta")
+pnad2 <- read.dta("C:/Users/luizf/Desktop/projeto/pnad2.dta")
+```
+
+### **Introdução**
+
+Este relatório consiste em uma análise sobre as características socioeconômicas do Brasil e do Nordeste brasileiro. O objetivo é verificar quais são algumas das características principais da população brasileira com base nos dados extraídos da Pesquisa Nacional por Amostra de Domicílios (PNAD), realizada anualmente pelo Instituto Brasileiro de Geografia e Estatística (IBGE) até 2015 (com exceção dos anos em que se realizou o censo demográfico). 
+
+Para manipulação dos dados do presente relatório, foram utilizados os pacotes: *dplyr*, *data.frame*, *ggplot2*, *brazilmaps* e *kableExtra*. Sendo os dois primeiros voltados para o tratamento dos dados e os três últimos voltados para a devida exposição dos resultados.Além dos pacotes já citados, foram utilizados os pacotes *sf* e *foreign*. Os dados foram extraídos da PNAD realizada no ano de 2015. As variáveis utilizadas foram devidamente separadas e tratadas com a finalidade de fornecer informações quanto a participação a população do nordeste brasileiro em cada uma das categorias de renda domiciliar per capita, nível de escolaridade e aspectos populacionais.
+
+**Palavras-chave:** Brasil; Nordeste; Escolaridade; Renda; PNAD. 
+
+### **Análise dos Dados**
+
+### 1. Escolaridade Média
+
+O mapa 01, apresenta a distribuição da escolaridade média, em anos de estudo, no estados brasileiros. Os estado de São Paulo e Rio de Janeiro, centros da economia nacional, e o Distrito Federal, sede do Governo Federal e centro político do país, foram as únicas unidades federativas que apresentaram escolaridade média acima de 9 anos. A região Sul também se destaca neste sentido, pois o indicativo é superior a 8 anos de estudo nos 3 estado que a compõe.
+
+```{r escBR, echo = FALSE}
+#Obtendo escolaridade media Brasil
+esc_media <- pnad %>% 
+group_by(UF) %>%
+  summarise(esc = weighted.mean(V4803, V4729))
+#Plotando no mapa BR
+escBR <- get_brmap(geo = "State", geo.filter = NULL) %>%
+  left_join(esc_media, by = c("State" = "UF")) %>%
+  ggplot() + geom_sf(aes(fill = esc)) +
+  scale_fill_viridis_c(option = 2, begin = 0.8, end = 0.2) +
+  labs(x = "Longitude", y = "Latitude", fill = "Anos de Estudo (Média)") +
+  ggtitle("Escolaridade Média por Estado do Brasil (2015)")+
+  theme_minimal()
+escBR
+```
+
+
+Por sua vez, as regiões Centro-Oeste e Norte ocupam posições intermediárias. Na primeira, os estados exibem médias de superiores a 7 anos e 6 meses, ao passo que na segunda, as menores médias encontradas, pertencentes ao Pará e Acre, giram em torno de 7 anos de estudos.
+
+A região Nordeste, mais detalhadamente exposta no mapa 02, é o destaque negativo neste quesito. Com os estados do MA, PI, e AL apresentando as mais baixas médias de estudo do país. Por outro lado, Pernambuco e Rio Grande do Norte são destaques positivos na macrorregião, embora ocupem posições medianas em escala nacional. Este relativo atraso da região nordestina é analisada por trabalhos como o de Bagolin e Porto (2004), que obteve resultados apontando que, embora o Brasil siga a tendência internacional de diminuição das desigualdades educacionais entre as regiões, o Nordeste resiste a essa inclinação de convergência.
+
+```{r escNE, echo = FALSE}
+#Obtendo escolaridade media Nordeste
+esc_mediaNE <- pnad %>%
+  group_by(UF) %>%
+  summarise(esc = weighted.mean(V4803, V4729)) %>% 
+  filter(UF %in% c("21","22","23","24","25","26","27","28","29"))
+#Plotando no mapa NE
+escNE <- get_brmap(geo = "State", geo.filter = NULL) %>%
+  filter(Region == 2) %>% 
+  left_join(esc_mediaNE, by = c("State" = "UF")) %>%
+  ggplot() + geom_sf(aes(fill = esc)) +
+  scale_fill_viridis_c(option = 3, begin = 0.8, end = 0.2) +
+  labs(x = "Longitude", y = "Latitude", fill = "Anos de Estudo (Média)") +
+  ggtitle("Escolaridade Média por Estado do Nordeste (2015)")+
+  theme_minimal()
+escNE
+```
+
+O principal fator apontado para explicar este cenário foi a desigual distribuição de ensino dentro dos próprios estados da macrorregião, respaldado pelo índice de GINI educacional, medida utilizada para mensurar a distribuição da educação nos munícipios nordestinos. A partir isso, evidenciou-se que os estados com níveis educacionais mais baixos também apresentam pior distribuição de ensino entre os munícipios, o que demanda uma solução elementar voltada para universalização da educação. BAGOLIN e PORTO (2004).
+
+### 2. Níveis de Renda
+
+Os gráficos a seguir apresentam a distribuição da amostra em sete faixas de renda para o Brasil e para a região Nordeste, em que a menor compreende rendas inferiores a ¼ do salário mínimo e a maior, superior a cinco salários. Posto isso, é observado que a maioria dos indivíduos apresentam faixas de renda intermediárias, em que mais da metade tem renda que variam entre meio e dois salários mínimos. Por sua vez, as três maiores faixas apresentam as menores proporções que diminuem progressivamente conforme eleva-se o nível de renda.
+
+```{r tabela, echo = FALSE}
+# Gerando os dados da tabela
+niveis <- c(1, 2, 3, 4, 5, 6, 7, "Até 1/4 Salário Mínimo",
+            "1/4 a 1/2 Salário Mínimo", "1/2 a 1 Salário Mínimo",
+            "1 a 2 Salários Mínimos", "2 a 3 Salários Mínimos",
+            "3 a 5 Salários Mínimos", "Mais de 4 Salários Mínimos")
+salarios <- matrix(data = niveis, nrow = 7,
+                        ncol = 2, byrow = F)
+colnames(salarios) <- c("Nível de Renda", "Faixa Salarial")
+#Gerando a tabela
+  kable(salarios) %>%
+  kable_styling(bootstrap_options = "striped", full_width = F, position = "center")
+```
+
+
+#### Brasil
+
+A Distribuição por faixa de rendimento mensal domiciliar per capta no país apresentada no gráfico abaixo evidencia que mais de 60% da população brasileira possui renda inferior a um salário mínimo.  
+
+```{r rendaBR, echo = F, warning=F}
+# Plotando grafico de faixa de renda Brasil 
+pnad %>%
+  ggplot() +
+  geom_bar(aes(x = V4743), color = "black", fill = "dodgerblue4") +
+  labs(x = "Faixa de de Renda", y = "Número de Indivíduos") +
+  ggtitle("Indivíduos por Faixa de Renda no Brasil (2015)")+
+  theme_minimal()
+```
+
+Esta assertiva expõe não somente a distância entre as categorias de renda, mas também destaca a desigualdade instaurada no país, onde um número significativo da população sobrevive com até ½ salário mínimo.
+
+```{r brr, echo = FALSE, message=F}
+#Separando a Renda
+brr <- pnad %>% 
+  select (V4743)%>%
+  filter(V4743 %between% c(1,7))
+#adicionando a frequência das faixas de renda
+brr <- as.data.frame(table(brr))
+#Adcionando as participações relativas
+brr %>% 
+  select(brr,Freq) %>%
+  mutate(rel=Freq/sum(Freq))
+Legenda <- c("1 - Até 1/4 Salário Mínimo",
+             "2 - 1/4 a 1/2 Salário Mínimo", 
+             "3 - 1/2 a 1 Salário Mínimo",
+             "4 - 1 a 2 Salários Mínimos",
+             "5 - 2 a 3 Salários Mínimos",
+             "6 - 3 a 5 Salários Mínimos",
+             "7 - Mais de 5 Salários Mínimos")
+#Cores
+mycols1 <- c("#87CEFA", "#ADD8E6", "#00BFFF", "#4682B4",
+             "#B0E0E6","#AFEEEE","#40E0D0")
+#Gráfico
+ggplot(brr, aes(x = 2, y = Freq, fill = Legenda)) +
+  geom_bar(stat = "identity", color = "white") +
+  coord_polar(theta = "y", start = 0)+
+  scale_fill_manual(values = mycols1) +
+  ggtitle("Proporção de Faixas de Renda no Brasil (2015)")+
+  theme_void()+
+  xlim(0.5, 2.5)
+```
+
+#### Nordeste
+
+Na região Nordeste, este indicativo, disposto nos gráficos, comporta-se de forma mais acentuada nos níveis mais baixos, que concentram cerca de 3/4   dos indivíduos. Isto é, 75% da população nordestina apresenta renda inferior a um salário mínimo, em escala nacional essa proporção é de aproximadamente 60%. As menores proporções daqueles com renda superior a dois salários, cerca de 10% da população, também evidencia a forte concentração de renda e maior nível de pobreza da região. O maior nível de pobreza do Nordeste pode ser relacionado com sua média de escolaridade, podendo esta ser interpretada como uma relação causal da segunda para a primeira.
+
+```{r rendaNE, echo = F, warning=F}
+# Plotando grafico de faixa de renda Nordeste
+pnad %>%
+  filter(UF %in% c("21","22","23","24","25","26","27","28","29")) %>% 
+  ggplot() +
+  geom_bar(aes(x = V4743), color = "black", fill = "deepskyblue3") +
+  labs(x = "Faixa de de Renda", y = "Número de Indivíduos") +
+  ggtitle("Indivíduos por Faixa de Renda no Nordeste (2015)")+
+  theme_minimal()
+```
+
+Tal entendimento é reforçado ao considerar que a educação é um fator crucial para o crescimento econômico de longo prazo entre as regiões, isto é, a disponibilidade e qualidade do capital humano, refletida pelos anos médios de escolaridade, tende a reduzir a desigualdade de renda. Salvato et al (2010) investiga este papel explicativo da educação para a desigualdade de renda. No trabalho é destacada a seguinte ordem de causalidade, iniciada pela relação dos anos de estudo com a renda do trabalho, que por sua vez determina a faixa de renda e o nível de pobreza, sendo a desigualdade de renda mais acentuada nas regiões mais pobres.
+
+A renda domiciliar per capta da maioria da região se mantém - assim como observado para o Brasil - entre as categorias mais baixas de renda, no entanto, a parcela da população que detém renda superior a dois salários mínimos é consideravelmente menor. Por exemplo, aproximadamente somente 1,7% da população nordestina possui renda domiciliar per capta superior a cinco salários mínimos em comparação com os 3,5% do Brasil.
+
+```{r ner, echo = FALSE}
+#Separando a renda
+ner <- pnad %>% 
+  select (V4743,UF)%>% 
+  filter(V4743 %between% c(1,7)) %>% 
+  filter(UF %between% c(21,29))
+#Isolando a renda
+ner <- ner %>% select (V4743)
+#adicionando a frequência das faixas de renda
+ner <- as.data.frame(table(ner))
+#Adcionando as participações relativas
+ner <- ner %>% select(ner,Freq) %>% mutate(rel=Freq/sum(Freq))
+#Cores
+mycols2 <- c("#87CEFA", "#ADD8E6", "#00BFFF", "#4682B4",
+             "#B0E0E6","#AFEEEE","#40E0D0")
+#Gráfico
+ggplot(ner, aes(x = 2, y = Freq, fill = Legenda)) +
+  geom_bar(stat = "identity", color = "white") +
+  coord_polar(theta = "y", start = 0)+
+  scale_fill_manual(values = mycols2) +
+  ggtitle("Proporção de Faixas de Renda no Nordeste (2015)")+
+  theme_void()+
+  xlim(0.5, 2.5)
+```
+
+Este resultado embora negativo acaba sendo previsível em função do menor grau de escolaridade da região comparativamente a outras do país e da relação positiva entre a educação e renda do individuo. Desta forma, as regiões com maior grau de escolaridade se encontram numa situação de renda preferida a de regiões de menor grau.
+
+### 3. Aspectos Populacionais
+
+O mapa abaixo expõe a proporção de mulheres nos estados nordestinos que, no geral, é equilibrada, variando entre 49% e 54%, aproximadamente. Entretanto, dentro desta escala, destaca-se o estado Paraíba com maior a proporção de mulheres, enquanto o estado do Maranhão apresenta divisão mais equilibrada.
+
+```{r mlhrNE, echo = FALSE}
+#Obtendo proporcao mulheres NE
+mulhr <- pnad2 %>% 
+  group_by(UF) %>%
+  summarise(mlhr = (weighted.mean(mulher, V4729)*100))
+#Plotando no mapa NE
+mlhrNE <- get_brmap(geo = "State", geo.filter = NULL) %>%
+  filter(Region == 2) %>% 
+  left_join(mulhr, by = c("State" = "UF")) %>%
+  ggplot() + geom_sf(aes(fill = mlhr)) +
+  scale_fill_viridis_c(option = 1, begin = 0.8, end = 0.2) +
+  labs(x = "Longitude", y = "Latitude", fill = "Proporção (%)") +
+  ggtitle("Proporção de Mulheres por Estado no Nordeste (2015)")+
+  theme_minimal()
+mlhrNE 
+```
+
+Com relação a distribuição de renda entre as mulheres no Nordeste, o gráfico 5 apresenta as proporções por faixa de renda, que se comparado com o gráfico 4, que analisa esse mesmo aspecto para toda a população nordestina, observa-se que a participação das mulheres nas faixas de renda não é proporcional a seu peso populacional. Isto é, mesmo sendo maioria da população, esta proporção não se mantém uniforme nas diferentes faixas de renda, pois as mulheres são minoria entre os que tem renda superior a dois salários mínimos, ocorrendo o inverso nos níveis de renda inferiores.
+
+```{r rmuNE, echo = F, warning=F}
+# Renda Mulheres NE
+pnad %>%
+  filter(V0302 == "4",
+         UF %in% c("21","22","23","24","25","26","27","28","29")) %>% 
+  ggplot() +
+  geom_bar(aes(x = V4743), color = "black", fill = "darkviolet") +
+  labs(x = "Faixa de de Renda", y = "Número de Indivíduos") +
+  ggtitle("Faixas de Renda das Mulheres no Nordeste (2015)")+
+  theme_minimal()
+```
+
+Considerando aspectos relacionados a cor (autodeclarada), o mapa 5 exibe a proporções entre brancos e não branco no Nordeste. Para todos os estados, a porcentagem de não-brancos é superior, sendo no mínimo 60%. Na Bahia e Maranhão esta proporção chega a 80%, número associado a estrutura da população dos estados, em que o primeiro apresenta grande número de pretos enquanto o segundo, região amazônica se destaca com maior número de indígenas e pardos em relação aos demais estados.
+
+```{r nbNE, echo = FALSE}
+#Obtendo proporcao nao-brancos NE
+nbc <- pnad2 %>% 
+  group_by(UF) %>%
+  summarise(nbr = (weighted.mean(nbranco, V4729)*100))
+#Plotando no mapa NE
+nbNE <- get_brmap(geo = "State", geo.filter = NULL) %>%
+  filter(Region == 2) %>% 
+  left_join(nbc, by = c("State" = "UF")) %>%
+  ggplot() + geom_sf(aes(fill = nbr)) +
+  scale_fill_viridis_c(option = 9, begin = 0.8, end = 0.2) +
+  labs(x = "Longitude", y = "Latitude", fill = "Proporção (%)") +
+  ggtitle("Proporção de Pessoas Não-brancas por Estado no Nordeste (2015)")+
+  theme_minimal()
+nbNE
+```
+
+A efeito de comparação, considerando numa situação de renda bem distribuída, não brancos, que correspondem a cerca de 75% da população nordestina, apresentariam esta mesma participação nas faixas de renda. No entanto o que se observa é que esta proporção se eleva nas faixas de renda mais baixas e reduz-se nos níveis elevadas. Isto é, a população não branca é a parcela que mais se concentra na base da pirâmide da renda.
+As desigualdades de renda apontadas, entre homens e mulheres, brancos e não brancos, mais evidenciada ao considerar os respectivos pesos populacionais, pode ser consequência justamente da maior participação dos grupos menos favorecidos, mulheres e não brancos, na população da região Nordeste. Isto sem desconsiderar outras possíveis causalidades que vão além do escopo deste trabalho.
+
+```{r rnbNE, echo = F, warning=F}
+# Renda Pessoas nao-brancas NE
+pnad %>%
+  filter(V0404 %in% c("4","6","8","0"),
+         UF %in% c("21","22","23","24","25","26","27","28","29")) %>% 
+  ggplot() +
+  geom_bar(aes(x = V4743), color = "black", fill = "coral3") +
+  labs(x = "Faixa de de Renda", y = "Número de Indivíduos") +
+  ggtitle("Faixas de Renda das Pessoas Não-Brancas no Nordeste (2015)")+
+  theme_minimal()
+```
+
+Entretanto para fins de complementação, vale mencionar o trabalho de Corseiul e Coelho (2001) que investiga possíveis causas dessas disparidades. Assim indica-se que a desigualdade de renda entre os sexos advém principalmente do mercado de trabalho, historicamente desfavorável as mulheres por meio da existência de discriminação salarial por gênero. Quanto a disparidade entre brancos e não-brancos, aponta-se questões de inclusão no sistema educacional e discriminação racial como fatores importantes.
+
+### **Conclusões**
+
+O principal resultado obtido foi o de que os baixos níveis de renda no Nordeste podem estar, em geral, relacionados com o baixo nível de escolaridade média. No entanto, esta afirmação só poderia ser realizada se fosse corroborada por uma análise estatística e econométrica robusta, que não foi objeto desta análise. O mesmo raciocínio pode ser aplicado para as análises dos perfis de renda por gênero e cor autodeclarados.
+
+Esse tipo de estudo, acompanhado de análises mais profundas, pode ser utilizado para ajudar na elaboração de políticas públicas que busquem equalizar as diferenças entre as regiões, fazendo alguns indicadores selecionados convergirem para a média nacional. Um exemplo seria a visível necessidade de maiores investimentos em educação básica na região Nordeste que poderiam ajudar na melhoria dos indicadores de renda não só da região, como do país inteiro.
+
+### **Referências**
+
+BAGOLIN, Izete P.; PORTO, Sabino S. J.; **A desigualdade da distribuição da educação e crescimento no Brasil: índice de Gini e anos de escolaridade**. Porto Alegre: UFRGS, 2003 (Texto para discussão nº 2003/09).
+
+BARROS, R. P. de; MENDONÇA, R.**Os determinantes da desigualdade no Brasil**. IPEA, 1995. (Texto para Discussão n. 377).
+
+COELHO, A. M.; CORSEUIL, C. H., **Diferenciais Salariais no Brasil: Um breve panorama**. Rio de Janeiro: IPEA, 2002 (Texto para Discussão nº 898).
+
+IBGE - Instituto Brasileiro de Geografia e estatística. **Pesquisa Nacional por Amostra de Domicílios**, 2015.
+
+SALVATO, Marcio A.; FERREIRA, Pedro C. G.; DUARTE, J. M.; **O impacto da escolaridade sobre a distribuição de renda**. Estudos Econômicos vo. 40 no. 4. São Paulo, 2010.
+
